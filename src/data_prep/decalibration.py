@@ -163,7 +163,7 @@ def main():
             # H-FOV = 360deg
             # V-FOV = 26.9deg
 
-            samplesize = 30
+            samplesize = 5
             [R_euler,t_decalib] = generaterandomRT(samplesize)
 
             [points,color] = projpointcloud2imgplane(pointcloud,(-24.9,2),(-45,45), R, T, P)

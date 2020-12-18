@@ -5,6 +5,8 @@ from torch.utils.data import Dataset
 from scipy.spatial.transform import Rotation as rot
 import cv2
 import math
+import csv
+import imageio as io
 
 
 
@@ -103,6 +105,96 @@ class dataLoader(Dataset):
         # Pending normalization of point cloud
         # ptCld[:,0:3] = normalizePtCld(ptCld[:,0:3])
         return (ptCld, processedImg, transform, targetCld)
+
+class dataLoaderdepthimg(Dataset):
+    def __init__ (self, filename='/home/akshay/calibnet/parsed_set.txt'):
+        
+        datafile = filename
+        self.dataset = np.loadtxt(filename, dtype = str)
+        self.data = {}
+
+        self.transformed_depth_map = np.ndarray.tolist(self.dataset[:,0])
+        self.original_depth_map = np.ndarray.tolist(self.dataset[:,1])
+        self.image_02 = np.ndarray.tolist(self.dataset[:,2])
+        self.image_03 = np.ndarray.tolist(self.dataset[:,3])
+        self.transforms = self.dataset[:,4:20].astype(float)
+        self.pointcloud = np.ndarray.tolist(self.dataset[:,20])
+        
+
+        
+    def __len__(self):
+        return(len(self.dataset))
+
+    def __getitem__(self, key):
+        return(self.getItem(str(key)))
+
+    def getItem(self, key):
+        srcdepthimgfp = self.transformed_depth_map[int(key)] 
+        targetdepthimgfp = self.original_depth_map[int(key)] 
+        colorimagefp = self.image_02[int(key)] 
+        colorimage_2fp = self.image_03[int(key)]
+        tragettransform = self.transforms[int(key)].reshape(4,4)
+        ptcldfilename = self.pointcloud[int(key)]
+        
+        '''
+        Read the taransformed depth images
+        '''
+        srcdepthimg = cv2.imread(srcdepthimgfp).astype(float)
+        [imgWD,imgHT,channel] = srcdepthimg.shape
+        srcdepthimg[0:5,:,:] = 0.0
+        srcdepthimg[:,0:5] = 0.0
+        srcdepthimg[imgWD-5:,:] = 0.0
+        srcdepthimg[:,imgHT-5:] = 0.0
+        # Normalize the image
+        srcdepthimg = (srcdepthimg - 40.0)/40.0
+        '''
+        Read the target depth image
+        '''
+        targetdepthimg = cv2.imread(targetdepthimgfp)
+        [imgWD,imgHT,channel] = targetdepthimg.shape
+        targetdepthimg[0:5,:,:] = 0.0
+        targetdepthimg[:,0:5] = 0.0
+        targetdepthimg[imgWD-5:,:] = 0.0
+        targetdepthimg[:,imgHT-5:] = 0.0
+        # Normalize the image
+        targetdepthimg = (targetdepthimg - 40.0)/40.0
+
+        '''
+        Read the color image image_02 
+        '''
+        colorimage = cv2.imread(colorimagefp)
+        [imgWD,imgHT,channel] = colorimage.shape
+        colorimage[0:5,:,:] = 0.0
+        colorimage[:,0:5] = 0.0
+        colorimage[imgWD-5:,:] = 0.0
+        colorimage[:,imgHT-5:] = 0.0
+        # Normalize the image
+        colorimage = (colorimage - 127.5)/127.5
+
+        '''
+        Read the color image image_03
+        '''
+        colorimage_2 = cv2.imread(colorimage_2fp)
+        [imgWD,imgHT,channel] = colorimage_2.shape
+        colorimage_2[0:5,:,:] = 0.0
+        colorimage_2[:,0:5] = 0.0
+        colorimage_2[imgWD-5:,:] = 0.0
+        colorimage_2[:,imgHT-5:] = 0.0
+        # Normalize the image
+        colorimage_2 = (colorimage_2 - 127.5)/127.5
+
+        '''
+        Read the source point cloud
+        '''
+        src_ptcld, intensity = readvelodynepointcloud(ptcldfilename)
+        
+        #subsample poitclouds
+
+
+
+        return([srcdepthimg, targetdepthimg, colorimage, colorimage_2, tragettransform, src_ptcld])
+
+
 
 if __name__ == "__main__":
     obj = dataLoader()
